@@ -160,6 +160,7 @@ function render(){
     '<div class="meta"><span>Target'+(it.manual_target?' (manual)':' (auto)')+'<b>'+eur(it.manual_target||st.target)+'</b></span><span>90d median<b>'+eur(st.median)+'</b></span><span>Lowest<b>'+eur(st.low)+'</b></span></div>'+
     '<ul class="why">'+(st.reasons||['Waiting for the first check.']).map(function(r){return '<li>'+esc(r)+'</li>'}).join('')+'</ul>'+
     (st.error?'<div class="err">Last check failed: '+esc(st.error)+'</div>':'')+
+    (st.note?'<div class="note">'+esc(st.note)+'</div>':'')+
     (it.need_by?'<div class="note">Need by '+esc(it.need_by)+'</div>':'')+
     '<div class="actions"><button class="ghost" data-a="edit" data-id="'+esc(it.id)+'">Edit</button><button class="ghost" data-a="del" data-id="'+esc(it.id)+'">Remove</button></div></article>';
   }).join('');
