@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Price Radar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: header with view toggle, summary strip, then ranked cards (list view) or large charts (chart view). All data comes from a private GitHub repo. */
+:root{--bg:#f3f5f7;--surface:#fff;--ink:#14202b;--muted:#5d6b78;--line:#dde3e8;--accent:#0b6e8a;--accent-soft:#e1f0f4;
+--buy:#0f7b4a;--buy-soft:#dff3e8;--watch:#9a6700;--watch-soft:#fbefd0;--wait:#5d6b78;--wait-soft:#e8ecef;--bad:#b3261e;
+--fb:"IBM Plex Sans",system-ui,sans-serif;--fh:"Space Grotesk","IBM Plex Sans",system-ui,sans-serif;--fn:"IBM Plex Mono",ui-monospace,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e151b;--surface:#16202a;--ink:#e6edf2;--muted:#8fa0ae;--line:#26333f;--accent:#4fb6d2;--accent-soft:#16303a;--buy:#4cc38a;--buy-soft:#12301f;--watch:#e0b04a;--watch-soft:#33290f;--wait:#8fa0ae;--wait-soft:#212c36;--bad:#f2867f;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--fb);padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+h1{font:700 28px var(--fh);margin:0;letter-spacing:-.01em}
+.sub,.note{color:var(--muted);font-size:12px;margin:2px 0 0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--surface);color:var(--muted);padding:6px 12px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+button{font:500 14px var(--fb);cursor:pointer;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--bg);padding:8px 14px}
+button.ghost{background:transparent;color:var(--muted);border-color:var(--line);padding:5px 10px;font-size:12px}
+button.ghost:hover{color:var(--ink);border-color:var(--muted)}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;min-width:0;width:100%}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.num{font-family:var(--fn);font-variant-numeric:tabular-nums}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);padding:12px 14px;border-radius:6px}
+.stat b{display:block;font:500 24px var(--fn)}.stat span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.stat.buy b{color:var(--buy)}.stat.bad b{color:var(--bad)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.form{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end}
+.form .w2{grid-column:span 2}.form .w3{grid-column:span 3}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.grid.charts{grid-template-columns:1fr}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.BUY{border-color:var(--buy);box-shadow:inset 0 3px 0 var(--buy)}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.top h2{font-size:16px;margin:0;font-weight:600;overflow-wrap:anywhere}
+.top a{color:var(--muted);font-size:12px;text-decoration:none;overflow-wrap:anywhere}.top a:hover{color:var(--accent)}
+.pill{font-size:11px;font-weight:600;letter-spacing:.08em;padding:4px 9px;border-radius:99px;white-space:nowrap}
+.pill.BUY{background:var(--buy-soft);color:var(--buy)}.pill.WATCH{background:var(--watch-soft);color:var(--watch)}
+.pill.WAIT,.pill.LEARNING{background:var(--wait-soft);color:var(--wait)}
+.price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.price .now{font:500 30px var(--fn)}.price .d{font:12px var(--fn);color:var(--muted)}
+svg.spark{width:100%;height:84px;display:block}.charts svg.spark{height:220px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;color:var(--muted)}
+.meta b{display:block;color:var(--ink);font:500 13px var(--fn)}
+ul.why{margin:0;padding-left:18px;color:var(--muted);font-size:13px}
+.err{color:var(--bad);font-size:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.empty{border:1px dashed var(--line);border-radius:6px;padding:28px;text-align:center;color:var(--muted);background:var(--surface)}
+@media (max-width:760px){.form{grid-template-columns:1fr 1fr}.form .w2,.form .w3{grid-column:span 2}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>Price Radar</h1><p class="sub" id="status">Not connected</p></div>
+  <div class="bar" id="bar" hidden>
+    <div class="seg" role="group" aria-label="View"><button id="vList" aria-pressed="true">List</button><button id="vChart" aria-pressed="false">Charts</button></div>
+    <button class="ghost" id="runNow">Run check now</button>
+    <button class="ghost" id="settings">Settings</button>
+  </div>
+</header>
+
+<section class="panel" id="connect" hidden>
+  <h2 style="margin:0 0 6px;font-size:16px">Connect to your data</h2>
+  <p class="note" style="margin-bottom:12px">Your watchlist lives in a private GitHub repo. Create a fine-grained token limited to that one repo with Contents: read and write, plus Actions: read and write (for the Run check button). The token stays in this browser only.</p>
+  <div class="form">
+    <label class="w2">Repo (owner/name)<input id="cRepo" placeholder="yourname/price-radar-data"></label>
+    <label class="w3">Token<input id="cTok" type="password" autocomplete="off" placeholder="github_pat_..."></label>
+    <button id="cSave">Connect</button>
+  </div>
+  <p class="err" id="cErr"></p>
+</section>
+
+<div id="main" hidden>
+  <section class="summary" id="summary"></section>
+  <details class="panel" id="addBox" style="margin-top:18px"><summary style="cursor:pointer;font-weight:500">Add or edit a product</summary>
+    <form class="form" id="form" style="margin-top:12px">
+      <label class="w3">Product<input id="fName" required placeholder="Sony WH-1000XM5"></label>
+      <label class="w3">Exact variant (size, colour, model)<input id="fVar" placeholder="Black, EU plug"></label>
+      <label class="w3">Product page URL<input id="fUrl" type="url" required placeholder="https://..."></label>
+      <label>Shipping (EUR)<input id="fShip" type="number" step="0.01" min="0" placeholder="0"></label>
+      <label>Need by<input id="fNeed" type="date"></label>
+      <label>Manual target (EUR, optional)<input id="fTarget" type="number" step="0.01" min="0" placeholder="auto"></label>
+      <button type="submit" id="fSave">Save product</button>
+      <button type="button" class="ghost" id="fCancel" hidden>Cancel edit</button>
+    </form>
+    <p class="note">Leave the target empty to use the auto-target (bottom 10% of the price history, available after 10 prices). Prices are converted to EUR.</p>
+  </details>
+  <section class="grid" id="grid" style="margin-top:18px"></section>
+</div>
+</div>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var cfg=load(), files={}, shas={}, view=ls('pr_view')||'list', editing=null;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function load(){try{return JSON.parse(localStorage.getItem('pr_cfg')||'null')}catch(e){return null}}
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML}
+function eur(v){return v==null?'–':'€'+Number(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+
+function api(path,opt){
+  opt=opt||{};opt.headers=Object.assign({'Authorization':'Bearer '+cfg.token,'Accept':'application/vnd.github+json'},opt.headers||{});opt.cache='no-store';
+  return fetch('https://api.github.com/repos/'+cfg.repo+path,opt).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error(r.status+' '+t.slice(0,120))});
+    return r.status===204?null:r.json()});
+}
+function readFile(n){return api('/contents/data/'+n).then(function(j){
+  shas[n]=j.sha;var bin=atob(j.content.replace(/\n/g,''));var u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  files[n]=JSON.parse(new TextDecoder().decode(u))})}
+function writeFile(n,obj,msg){
+  var bytes=new TextEncoder().encode(JSON.stringify(obj,null,1)+'\n'),s='';bytes.forEach(function(b){s+=String.fromCharCode(b)});
+  return api('/contents/data/'+n,{method:'PUT',body:JSON.stringify({message:msg,content:btoa(s),sha:shas[n]})}).then(function(j){shas[n]=j.content.sha;files[n]=obj})}
+
+function refresh(){
+  $('status').textContent='Loading…';
+  return Promise.all(['watchlist.json','history.json','state.json'].map(readFile)).then(function(){
+    var t=Object.values(files['state.json']).map(function(s){return s.checked_at}).filter(Boolean).sort().pop();
+    $('status').textContent=t?'Last check '+t.slice(0,16).replace('T',' ')+' UTC':'Connected. No check has run yet.';
+    render();
+  }).catch(function(e){$('status').textContent='Could not load: '+e.message;});
+}
+
+function spark(h,st){
+  if(!h||h.length<2)return '<svg class="spark" viewBox="0 0 300 84"><text x="150" y="46" text-anchor="middle" font-size="12" fill="var(--muted)">Chart appears after 2 prices</text></svg>';
+  var W=300,H=84,p=4,ps=h.map(function(x){return x.p}),v=ps.slice();if(st.target)v.push(st.target);
+  var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v);if(mx===mn){mx++;mn--}
+  var X=function(i){return p+i*(W-2*p)/(h.length-1)},Y=function(a){return 8+(mx-a)*(H-16)/(mx-mn)};
+  var d=ps.map(function(a,i){return(i?'L':'M')+X(i).toFixed(1)+' '+Y(a).toFixed(1)}).join(' ');
+  var s='<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Price history">';
+  s+='<path d="'+d+' L'+X(h.length-1)+' '+(H-8)+' L'+X(0)+' '+(H-8)+' Z" fill="var(--accent-soft)"/>';
+  if(st.median>=mn&&st.median<=mx)s+='<line x1="0" x2="'+W+'" y1="'+Y(st.median)+'" y2="'+Y(st.median)+'" stroke="var(--line)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>';
+  if(st.target)s+='<line x1="0" x2="'+W+'" y1="'+Y(st.target)+'" y2="'+Y(st.target)+'" stroke="var(--buy)" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>';
+  s+='<path d="'+d+'" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke"/><circle cx="'+X(h.length-1)+'" cy="'+Y(ps[ps.length-1])+'" r="3.5" fill="var(--accent)"/></svg>';
+  return s;
+}
+
+function render(){
+  var wl=files['watchlist.json']||[],H=files['history.json']||{},S=files['state.json']||{};
+  var vs=wl.map(function(i){return (S[i.id]||{}).verdict});
+  var cnt=function(v){return vs.filter(function(x){return x===v}).length}, errs=wl.filter(function(i){return (S[i.id]||{}).error}).length;
+  $('summary').innerHTML='<div class="stat"><b>'+wl.length+'</b><span>Tracked</span></div><div class="stat'+(cnt('BUY')?' buy':'')+'"><b>'+cnt('BUY')+'</b><span>Buy now</span></div><div class="stat"><b>'+cnt('WATCH')+'</b><span>Watching</span></div><div class="stat'+(errs?' bad':'')+'"><b>'+errs+'</b><span>Failed checks</span></div>';
+  var g=$('grid');g.className='grid'+(view==='chart'?' charts':'');
+  if(!wl.length){g.innerHTML='<div class="empty" style="grid-column:1/-1"><b>Nothing tracked yet.</b><br>Open “Add or edit a product”, paste a product page URL and save. Then press “Run check now”.</div>';return}
+  var ord={BUY:0,WATCH:1,WAIT:2,LEARNING:3,undefined:4};
+  var list=wl.slice().sort(function(a,b){var x=S[a.id]||{},y=S[b.id]||{};return ord[x.verdict]-ord[y.verdict]||(y.score||0)-(x.score||0)});
+  g.innerHTML=list.map(function(it){
+    var st=S[it.id]||{},h=H[it.id]||[],last=h[h.length-1],prev=h.length>1?h[h.length-2].p:null,dl='';
+    if(last&&prev)dl=((last.p-prev)/prev*100>0?'+':'')+((last.p-prev)/prev*100).toFixed(1)+'% vs prev';
+    var v=st.verdict||'LEARNING',lbl={BUY:'BUY NOW',WATCH:'WATCH',WAIT:'WAIT',LEARNING:'LEARNING'}[v];
+    return '<article class="card '+v+'"><div class="top"><div><h2>'+esc(it.name)+(it.variant?' <span class="note">· '+esc(it.variant)+'</span>':'')+'</h2><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.url.replace(/^https?:\/\//,'').slice(0,48))+'</a></div><span class="pill '+v+'">'+lbl+'</span></div>'+
+    '<div class="price"><span class="now">'+(last?eur(last.p):'–')+'</span><span class="d">'+esc(dl)+(last&&last.stock===false?' · out of stock':'')+'</span></div>'+spark(h,st)+
+    '<div class="meta"><span>Target'+(it.manual_target?' (manual)':' (auto)')+'<b>'+eur(it.manual_target||st.target)+'</b></span><span>90d median<b>'+eur(st.median)+'</b></span><span>Lowest<b>'+eur(st.low)+'</b></span></div>'+
+    '<ul class="why">'+(st.reasons||['Waiting for the first check.']).map(function(r){return '<li>'+esc(r)+'</li>'}).join('')+'</ul>'+
+    (st.error?'<div class="err">Last check failed: '+esc(st.error)+'</div>':'')+
+    (it.need_by?'<div class="note">Need by '+esc(it.need_by)+'</div>':'')+
+    '<div class="actions"><button class="ghost" data-a="edit" data-id="'+esc(it.id)+'">Edit</button><button class="ghost" data-a="del" data-id="'+esc(it.id)+'">Remove</button></div></article>';
+  }).join('');
+}
+
+$('grid').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-a]');if(!b)return;var id=b.dataset.id,wl=files['watchlist.json'],it=wl.find(function(x){return x.id===id});if(!it)return;
+  if(b.dataset.a==='edit'){editing=id;$('fName').value=it.name;$('fVar').value=it.variant||'';$('fUrl').value=it.url;$('fShip').value=it.shipping||'';$('fNeed').value=it.need_by||'';$('fTarget').value=it.manual_target||'';$('fCancel').hidden=false;$('addBox').open=true;$('addBox').scrollIntoView({behavior:'smooth'})}
+  else if(b.dataset.armed){writeFile('watchlist.json',wl.filter(function(x){return x.id!==id}),'Remove '+it.name).then(render).catch(function(er){$('status').textContent='Save failed: '+er.message})}
+  else{b.dataset.armed='1';b.textContent='Confirm remove';setTimeout(function(){b.dataset.armed='';b.textContent='Remove'},3000)}
+});
+function resetForm(){editing=null;$('form').reset();$('fCancel').hidden=true}
+$('fCancel').onclick=resetForm;
+$('form').addEventListener('submit',function(e){
+  e.preventDefault();var wl=(files['watchlist.json']||[]).slice();
+  var rec={id:editing||'p'+Date.now().toString(36),name:$('fName').value.trim(),variant:$('fVar').value.trim(),url:$('fUrl').value.trim(),shipping:parseFloat($('fShip').value)||0,need_by:$('fNeed').value||null,manual_target:parseFloat($('fTarget').value)||null};
+  var i=wl.findIndex(function(x){return x.id===rec.id});if(i>=0)wl[i]=rec;else wl.push(rec);
+  $('fSave').disabled=true;
+  writeFile('watchlist.json',wl,(i>=0?'Edit ':'Add ')+rec.name).then(function(){resetForm();render()}).catch(function(er){$('status').textContent='Save failed: '+er.message}).then(function(){$('fSave').disabled=false});
+});
+function setView(v){view=v;ls('pr_view',v);$('vList').setAttribute('aria-pressed',v==='list');$('vChart').setAttribute('aria-pressed',v==='chart');if(files['watchlist.json'])render()}
+$('vList').onclick=function(){setView('list')};$('vChart').onclick=function(){setView('chart')};
+$('runNow').onclick=function(){$('status').textContent='Starting check…';api('/actions/workflows/daily.yml/dispatches',{method:'POST',body:JSON.stringify({ref:'main'})}).then(function(){$('status').textContent='Check started. Reload in about a minute.'}).catch(function(e){$('status').textContent='Could not start: '+e.message})};
+$('settings').onclick=function(){try{localStorage.removeItem('pr_cfg')}catch(e){}cfg=null;start()};
+$('cSave').onclick=function(){var r=$('cRepo').value.trim(),t=$('cTok').value.trim();if(!/^[\w.-]+\/[\w.-]+$/.test(r)||!t){$('cErr').textContent='Enter the repo as owner/name and a token.';return}
+  cfg={repo:r,token:t};api('/contents/data/watchlist.json').then(function(){ls('pr_cfg',JSON.stringify(cfg));try{localStorage.setItem('pr_cfg',JSON.stringify(cfg))}catch(e){}$('cErr').textContent='';start()}).catch(function(e){cfg=null;$('cErr').textContent='Could not connect: '+e.message})};
+function start(){
+  var ok=!!cfg;$('connect').hidden=ok;$('main').hidden=!ok;$('bar').hidden=!ok;
+  if(!ok){$('status').textContent='Not connected';return}
+  setView(view);refresh();
+}
+start();
+})();
+</script>
+</body>
+</html>
